@@ -41,6 +41,10 @@ import (
 const (
 	localhost = "127.0.0.1"
 
+	remotehost = "192.168.1.73"
+
+	anyhost = "0.0.0.0"
+
 	// XdsCluster is the cluster name for the control server (used by non-ADS set-up)
 	XdsCluster = "xds_cluster"
 
@@ -71,7 +75,7 @@ func MakeEndpoint(clusterName string, port uint32) *v2.ClusterLoadAssignment {
 							Address: &core.Address_SocketAddress{
 								SocketAddress: &core.SocketAddress{
 									Protocol: core.SocketAddress_TCP,
-									Address:  localhost,
+									Address:  remotehost,
 									PortSpecifier: &core.SocketAddress_PortValue{
 										PortValue: port,
 									},
@@ -210,7 +214,7 @@ func MakeHTTPListener(mode string, listenerName string, port uint32, route strin
 			Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
 					Protocol: core.SocketAddress_TCP,
-					Address:  localhost,
+					Address:  anyhost,
 					PortSpecifier: &core.SocketAddress_PortValue{
 						PortValue: port,
 					},
@@ -284,6 +288,8 @@ func MakeRuntime(runtimeName string) *discovery.Runtime {
 
 // TestSnapshot holds parameters for a synthetic snapshot.
 type TestSnapshot struct {
+	// cluster name
+	ClusterName string
 	// Xds indicates snapshot mode: ads, xds, or rest
 	Xds string
 	// Version for the snapshot.
@@ -310,7 +316,7 @@ func (ts TestSnapshot) Generate() cache.Snapshot {
 	clusters := make([]cache.Resource, ts.NumClusters)
 	endpoints := make([]cache.Resource, ts.NumClusters)
 	for i := 0; i < ts.NumClusters; i++ {
-		name := fmt.Sprintf("cluster-%s-%d", ts.Version, i)
+		name := fmt.Sprintf("%s", ts.ClusterName)
 		clusters[i] = MakeCluster(ts.Xds, name)
 		endpoints[i] = MakeEndpoint(name, ts.UpstreamPort)
 	}

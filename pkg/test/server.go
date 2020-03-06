@@ -89,7 +89,7 @@ func RunManagementServer(ctx context.Context, server xds.Server, port uint) {
 	grpcOptions = append(grpcOptions, grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams))
 	grpcServer := grpc.NewServer(grpcOptions...)
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,8 +100,8 @@ func RunManagementServer(ctx context.Context, server xds.Server, port uint) {
 	v2grpc.RegisterClusterDiscoveryServiceServer(grpcServer, server)
 	v2grpc.RegisterRouteDiscoveryServiceServer(grpcServer, server)
 	v2grpc.RegisterListenerDiscoveryServiceServer(grpcServer, server)
-	discoverygrpc.RegisterSecretDiscoveryServiceServer(grpcServer, server)
-	discoverygrpc.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
+	//discoverygrpc.RegisterSecretDiscoveryServiceServer(grpcServer, server)
+	//discoverygrpc.RegisterRuntimeDiscoveryServiceServer(grpcServer, server)
 
 	log.Printf("management server listening on %d\n", port)
 	go func() {

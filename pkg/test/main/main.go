@@ -59,20 +59,20 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&debug, "debug", false, "Use debug logging")
+	flag.BoolVar(&debug, "debug", true, "Use debug logging")
 	flag.UintVar(&port, "port", 18000, "Management server port")
 	flag.UintVar(&gatewayPort, "gateway", 18001, "Management server port for HTTP gateway")
-	flag.UintVar(&upstreamPort, "upstream", 18080, "Upstream HTTP/1.1 port")
+	flag.UintVar(&upstreamPort, "upstream", 8080, "Upstream HTTP/1.1 port")
 	flag.UintVar(&basePort, "base", 9000, "Listener port")
 	flag.UintVar(&alsPort, "als", 18090, "Accesslog server port")
 	flag.DurationVar(&delay, "delay", 500*time.Millisecond, "Interval between request batch retries")
 	flag.IntVar(&requests, "r", 5, "Number of requests between snapshot updates")
-	flag.IntVar(&updates, "u", 3, "Number of snapshot updates")
+	flag.IntVar(&updates, "u", 5, "Number of snapshot updates")
 	flag.StringVar(&mode, "xds", resource.Ads, "Management server type (ads, xds, rest)")
-	flag.IntVar(&clusters, "clusters", 4, "Number of clusters")
-	flag.IntVar(&httpListeners, "http", 2, "Number of HTTP listeners (and RDS configs)")
-	flag.IntVar(&tcpListeners, "tcp", 2, "Number of TCP pass-through listeners")
-	flag.IntVar(&runtimes, "runtimes", 1, "Number of RTDS layers")
+	flag.IntVar(&clusters, "clusters", 1, "Number of clusters")
+	flag.IntVar(&httpListeners, "http", 1, "Number of HTTP listeners (and RDS configs)")
+	flag.IntVar(&tcpListeners, "tcp", 0, "Number of TCP pass-through listeners")
+	flag.IntVar(&runtimes, "runtimes", 0, "Number of RTDS layers")
 	flag.StringVar(&nodeID, "nodeID", "test-id", "Node ID")
 	flag.BoolVar(&tls, "tls", false, "Enable TLS on all listeners and use SDS for secret delivery")
 }
@@ -90,7 +90,7 @@ func main() {
 	cb := &callbacks{signal: signal}
 	config := cache.NewSnapshotCache(mode == resource.Ads, cache.IDHash{}, logger{})
 	srv := server.NewServer(context.Background(), config, cb)
-	als := &test.AccessLogService{}
+	//als := &test.AccessLogService{}
 
 	// create a test snapshot
 	snapshots := resource.TestSnapshot{
@@ -105,15 +105,15 @@ func main() {
 	}
 
 	// start the xDS server
-	go test.RunAccessLogServer(ctx, als, alsPort)
+	//go test.RunAccessLogServer(ctx, als, alsPort)
 	go test.RunManagementServer(ctx, srv, port)
-	go test.RunManagementGateway(ctx, srv, gatewayPort, logger{})
+	//go test.RunManagementGateway(ctx, srv, gatewayPort, logger{})
 
 	log.Println("waiting for the first request...")
 	select {
 	case <-signal:
 		break
-	case <-time.After(1 * time.Minute):
+	case <-time.After(10 * time.Minute):
 		log.Println("timeout waiting for the first request")
 		os.Exit(1)
 	}
@@ -122,6 +122,7 @@ func main() {
 
 	for i := 0; i < updates; i++ {
 		snapshots.Version = fmt.Sprintf("v%d", i)
+		snapshots.ClusterName = "productpage"
 		log.Printf("update snapshot %v\n", snapshots.Version)
 
 		snapshot := snapshots.Generate()
@@ -135,35 +136,39 @@ func main() {
 			os.Exit(1)
 		}
 
-		// pass is true if all requests succeed at least once in a run
-		pass := false
-		for j := 0; j < requests; j++ {
-			ok, failed := callEcho()
-			if failed == 0 && !pass {
-				pass = true
-			}
-			log.Printf("request batch %d, ok %v, failed %v, pass %v\n", j, ok, failed, pass)
-			select {
-			case <-time.After(delay):
-			case <-ctx.Done():
-				return
-			}
-		}
+		time.Sleep(time.Duration(40) * time.Second)
 
-		als.Dump(func(s string) {
-			if debug {
-				log.Println(s)
+		/*
+			// pass is true if all requests succeed at least once in a run
+			pass := false
+			for j := 0; j < requests; j++ {
+				ok, failed := callEcho()
+				if failed == 0 && !pass {
+					pass = true
+				}
+				log.Printf("request batch %d, ok %v, failed %v, pass %v\n", j, ok, failed, pass)
+				select {
+				case <-time.After(delay):
+				case <-ctx.Done():
+					return
+				}
 			}
-		})
-		cb.Report()
 
-		if !pass {
-			log.Printf("failed all requests in a run %d\n", i)
-			os.Exit(1)
-		}
+			als.Dump(func(s string) {
+				if debug {
+					log.Println(s)
+				}
+			})
+			cb.Report()
+
+			if !pass {
+				log.Printf("failed all requests in a run %d\n", i)
+				os.Exit(1)
+			}
+		*/
 	}
 
-	log.Printf("Test for %s passed!\n", mode)
+	//log.Printf("Test for %s passed!\n", mode)
 }
 
 // callEcho calls upstream echo service on all listener ports and returns an error
